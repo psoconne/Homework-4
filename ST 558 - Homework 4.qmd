@@ -1,0 +1,250 @@
+---
+title: "ST 558 - Homework 4"
+author: "Paige O'Connell"
+format: html
+editor: visual
+---
+
+## Task 1: Conceptual Questions
+
+1.  What is the purpose of the `lapply()` function? What is the equivalent `purrr` function?
+
+    -   The `lapply()` function is used to apply a function to a list. The equivalent `purrr` function is `map()`.
+
+2.  Suppose we have a list called my_list. Each element of the list is a numeric data frame (all columns are numeric). We want use `lapply()` to run the code `cor(numeric_matrix, method = "kendall")` on each element of the list. Write code to do this below! (I’m really trying to ask you how you specify method = "kendall" when calling `lapply()`)
+
+    -   `lapply(my_list, cor(numeric_matrix, method = "kendall"))`
+
+3.  What are two advantages of using purrr functions instead of the BaseR apply family?
+
+    -   Provides a `tidyverse` alternative to the `apply()` family
+    -   Main advantage is more consistency and some helper functions
+
+4.  What is a side-effect function?
+
+    -   A side-effect function doesn't try to change the data, it just tries to produce something or change the state of something. An example would be the `print()` function.
+
+5.  Why can you name a variable sd in a function and not cause any issues with the sd function?
+
+    -   You can do that because when you call a function, it creates temporary function environments. This is why variables in functions don't overwrite things.
+
+## Task 2 - Writing R Functions
+
+### Question 1
+> Write a basic function (call it `getRMSE()`) that takes in a vector of responses and a vector of predictions and outputs the RMSE.
+
+```{r}
+getRMSE <- function(responses, predictions, ...) {
+  square_diff <- (responses - predictions)^2
+  mean_square_diff <- mean(square_diff, ...)
+  rmse <- sqrt(mean_square_diff)
+  return(rmse)
+}
+```
+
+### Question 2
+> Run the following code to create some response values and predictions.
+
+```{r}
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10*x + rnorm(n)
+pred <- predict(lm(resp ~ x), data.frame(x))
+```
+
+> Test your RMSE function using this data.
+
+```{r}
+getRMSE(resp, pred)
+```
+
+> Repeat after replacing two of the response values with missing values (NA_real_).
+> Test your RMSE function with and without specifying the behavior to deal with missing values.
+
+```{r}
+resp_na <- resp
+resp_na[c(10, 20)] <- NA_real_
+
+getRMSE(resp_na, pred)
+```
+
+```{r}
+getRMSE(resp_na, pred, na.rm = TRUE)
+```
+
+
+### Question 3
+> Write a function called `getMAE()` that follows the specifications of the `getRMSE()` function.
+
+```{r}
+getMAE <- function(responses, predictions, ...) {
+  abs_diff <- abs(responses - predictions)
+  mae <- mean(abs_diff, ...)
+  return(mae)
+}
+```
+
+### Question 4
+> Run the following code to create some response values and predictions.
+
+```{r}
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10*x + rnorm(n)
+pred <- predict(lm(resp ~ x), data.frame(x))
+```
+
+> Test your MAE function using this data.
+
+```{r}
+getMAE(resp, pred)
+```
+
+> Repeat after replacing two of the response values with missing values (NA_real_).
+> Test your MAE function with and without specifying the behavior to deal with missing values.
+
+```{r}
+resp_na <- resp
+resp_na[c(10, 20)] <- NA_real_
+
+getMAE(resp_na, pred)
+```
+
+```{r}
+getMAE(resp_na, pred, na.rm = TRUE)
+```
+
+
+### Question 5
+> Let’s create a wrapper function that can be used to get either or both metrics returned with a single function call. Do not rewrite your above two functions, call them inside the wrapper function (we would call the getRMSE() and getMAE() functions helper functions). When returning your values, give them appropriate names.
+
+> -  The function should check that two numeric (atomic) vectors have been passed (consider is.vector(), is.atomic(), and is.numeric()). If not, a message should print and the function should exit.
+
+> -  The function should return both metrics by default and include names. The behavior should be able
+to be changed using a character string of metrics to find.
+
+```{r}
+getStats <- function(responses, predictions, stats = c("RMSE", "MAE"),...) {
+  # Check if inputs are numeric atomic vectors
+  if (!is.vector(responses) || !is.atomic(responses) || !is.numeric(responses) || 
+        !is.vector(predictions) || !is.atomic(predictions) || !is.numeric(predictions)) {
+    stop("Input must be two vectors that are numeric and atomic")
+  } else {
+      results <- list()
+  
+      if ("RMSE" %in% stats) {
+        results$RMSE <- getRMSE(responses, predictions, ...)
+      }
+      if ("MAE" %in% stats) {
+        results$MAE <- getMAE(responses, predictions, ...)
+      }
+  
+      return(results)
+    }
+  }
+```
+
+### Question 6
+
+> Run the following code to create some response values and predictions.
+
+```{r}
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10*x + rnorm(n)
+pred <- predict(lm(resp ~ x), data.frame(x))
+```
+
+> Test your new function using this data. Call it once asking for each metric individually and once
+specifying both metrics
+
+```{r}
+getStats(resp, pred, stats="RMSE")
+```
+
+```{r}
+getStats(resp, pred, stats="MAE")
+```
+
+```{r}
+getStats(resp, pred)
+```
+
+> Repeat with replacing two of the response values with missing values (NA_real_).
+
+```{r}
+resp_na <- resp
+resp_na[c(10, 20)] <- NA_real_
+
+getStats(resp_na, pred)
+```
+
+```{r}
+getStats(resp_na, pred, na.rm = TRUE)
+```
+
+> Finally, test your function by passing it incorrect data (i.e. a data frame or something else instead of vectors)
+
+```{r, error=TRUE}
+resp_wrong <- resp
+resp_wrong[c(10, 20)] <- "hello"
+
+getStats(resp_wrong, pred)
+```
+
+
+## Task 3 - Querying an API and a Tidy-Style Function
+
+> For this section, you’ll connect to the news API here: newsapi.org. You’ll need to go to register for a key at that web site!
+
+```{r}
+api_key <- "3cfcdf6cd7af41459c6f4cb8f6492729"
+```
+
+
+### Question 1
+> Use `GET()` from the `httr` package to return information about a topic that you are interested in that has been in the news lately (store the result as an R object). Note: We can only look 30 days into the past with a free account.
+
+```{r}
+URL <- paste0("https://newsapi.org/v2/everything?q=tesla&from=2024-06-10&apiKey=", api_key)
+
+news <- httr::GET(URL)
+
+str(news, max.level = 1)
+```
+
+### Question 2
+> Parse what is returned and find your way to the data frame that has the actual article information in it (check content). Note the first column should be a list column!
+
+```{r}
+parsed <- jsonlite::fromJSON(rawToChar(news$content))
+news_info <- tibble::as_tibble(parsed$articles)
+head(news_info)
+```
+
+### Question 3
+> Now write a quick function that allows the user to easily query this API. The inputs to the function
+should be the title/subject to search for (string), a time period to search from (string - you’ll search from that time until the present), and an API key.
+
+```{r}
+NewsAPI <- function(subject, date, api_key) {
+  url <- paste0("https://newsapi.org/v2/everything?q=", subject, "&from=", date, "&apiKey=", api_key)
+  
+  news_data <- httr::GET(url)
+  
+  parsed <- jsonlite::fromJSON(rawToChar(news_data$content))
+  news_info <- tibble::as_tibble(parsed$articles)
+  return(news_info)
+}
+```
+
+> Test function
+
+```{r}
+wrapper_data <- NewsAPI("tesla", "2024-06-10", api_key)
+head(wrapper_data)
+```
+
