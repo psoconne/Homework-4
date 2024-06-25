@@ -248,3 +248,8 @@ wrapper_data <- NewsAPI("tesla", "2024-06-10", api_key)
 head(wrapper_data)
 ```
 
+
+```{r}
+wrapper_data_2 <- NewsAPI("apple", "2024-05-30", api_key)
+head(wrapper_data_2)
+```
